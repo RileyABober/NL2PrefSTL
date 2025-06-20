@@ -76,7 +76,7 @@ def createDataPrompt(preference, reasoning, ego_name, ado_name, data, stride, sc
     prompt += "In this scenario the available atomic propositions are speed, acceleration, jerk, distance, longitudinal, relative."
     prompt += "jerk is the rate of acceleration. longitudinal is the horizontal speed of the vehicle, "
     prompt +="relative is the speed of the ego vehicle relative to the overtaken car. Distance is the distance of the ego vehicle relative to the overtaken car."
-    prompt += "Use only numerical values in the atomic propositions and do not consider safety constraints as it is unessesary in this instance.\n"
+    prompt += "Use only numerical values in the atomic propositions.\n" #and do not consider safety constraints as it is unessesary in this instance.\n"
 
     #one-shot STL
     prompt += "Given trajectory A and trajectory B where A accelerates around 10 and B accelerates around 5 when the distance from the car being "
@@ -121,7 +121,7 @@ def genErrorPrompt(advice):
     return prompt
 
 def genSTLCheckPrompt(stl):
-    prompt = "can the stl provided in your previous prompt be written as follows i pre-order forma?\n"
+    prompt = "Can the STL provided in your previous prompt be written as follows in pre-order form?\n"
     stlStr = "["
     for element in stl:
         stlStr += str(element)

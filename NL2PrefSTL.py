@@ -91,7 +91,7 @@ def NL2PrefSTL(preferences, reasonings, ego_name, ado_name, data, scenario, stri
         #now re-prompt until syntactically correct STL is generated
         for i in range(promptLimit):
             propSTL = findSTL(propSTL)
-            #is STL in bracket form?
+            #is STL in bracket form
             if propSTL[0] != False:
                 stlFeedback = checkSTL(propSTL, validData)
             #if STL is not in brackets, use feedback in re-prompt

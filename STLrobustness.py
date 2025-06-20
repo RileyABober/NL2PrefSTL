@@ -65,95 +65,9 @@ def isNum(num):
     except ValueError:
         return False
 
-#slt is a proposed STL string of the form [AP/operator, AP/operator,..., AP], validAPData is an array of names for data
+#stl is a proposed STL string of the form [AP/operator, AP/operator,..., AP], validAPData is an array of names for data
 #returns spliced STL or [False, violating formula element] if STL is an element is syntactically incorrect.
 #returns [False, stl] if the net syntax is incorrect
-'''
-def checkSTL(stl, validAPData):
-    #first check validity of individual elements in list and 
-    stlList = []
-    stl = stl[1:-1]
-    stl = stl.split(', ')
-    for element in stl:
-        p = None
-        #check for operator without timeseries information
-        if element in ["not", "and", "or", "imply"]:
-            p = Predicate(element)
-
-        e = element.split(" ")
-        #check for AP
-        if e[0] in validAPData:
-            #dataName, sign, constant
-            if len(e) != 3:
-                return [False, element + " is not composed of three portions with a space seperation, desired format is <data sign constant>"]
-            if e[1] not in ['<', '>', '='] or not isNum(e[2]):
-                return [False, element + " does not have correct formatting, only valid signs are <, >, ="]
-            try:
-                p = AP(e[0], e[1], float(e[2]))
-            except:
-                return [False, element + " constant specification cannot be read as a number, desired format is <data sign constant> where constant is a number"]
-                
-        #check for operator with timeseries information[]
-        if e[0] in ["until", "eventually", "always"]:
-            #operator <space> [time1 <space> time2]
-            if len(e) != 3:
-                return [False, element + " is not composed of three portions with a space seperation, desired format is operator [t1 t2]"]
-            if len(e[1]) < 2 or len(e[2]) < 2:
-                return [False, element + " invalid spacing in temporal specification, desired format is [t1 t2] where t1, t2 are numbers"]
-            if e[1][0] != '[' or e[2][-1] != ']' or not isNum(e[1][1:]) or not isNum(e[2][:-1]):
-                return [False, element + " no brackets at beginning or end of temporal specification detected, desired format is [t1 t2]"]
-            try:
-                #infinity is a valid AP
-                if e[2] == "infinity":
-                    p = Predicate(e[0], float(e[1]), e[2])
-                else:
-                    p = Predicate(e[0], [float(e[1]), float(e[2])])
-            except:
-                return [False, element + " temporal specification within brackets cannot be read as a number, desired format is [t1 t2] where t1 and t2 are numbers"]
-
-        if p == None:
-            #general failure without specific rationale discovered so preform general diagnostic
-            #likely an attempted AP:
-            if '<' in element or '>' in element or '=' in element:
-                return [False, element + " AP is incorrectly formated, desired format is <data sign constant>"]
-            #Another likely attempt an at AP
-            for label in validAPData:
-                if label in element:
-                    return [False, element + " AP is incorrectly formated, desired format is <data sign constant>"]
-            #Likely attempt at a temporal operator
-            if 'always' in element or 'until' in element or 'eventually' in element:
-                return [False, element + " temporal operator is incorrectly formated, desired format is <operator [t1 t2]>"]
-            #Likely attempt at a non-temporal operator
-            if 'not' in element or 'and' in element or 'or' in element or 'imply' in element:
-                return [False, element + " operator is incorrectly formatted, desired format is <operator> without additional information"]
-            
-            #if not rationale found, note general rejection
-            rejection = "STL is syntactically invalid. Remember that all operators within the { } brackets must be verbatim from the following " \
-            "'and', 'or', 'not', 'imply', 'always', 'eventually', 'until' and the STL must be in pre-order format. "
-            return [False, rejection]
-        #correct syntax discoered
-        stlList.append(p)
-
-    #check STL is structure is valid
-    #note that there should be one root for the STL preorder tree (count == 1)
-    count = 0
-    for inv in range(len(stlList)):
-        #reverse order to build tree
-        element = stlList[len(stlList) - 1 - inv]
-        if type(element) == AP:
-            count += 1
-        if type(element) == Predicate:
-            if element.name not in ["not", "always", "eventually"]:
-                count -= 1
-        #no root nodes detected
-        if count < 1:
-            return [False, "stl is not in valid pre-order, specifically " + element.name + " does not have a sufficient number of propositions"]
-    if count != 1:
-        return [False, "stl is not in valid pre-order, specifically there are " + str(count) + " propositions that are not connected via a proposition"]
-
-    return stlList
-'''
-
 def checkSTL(stl, validAPData):
     #operators
     regStr = "not|imply|and|or|always|eventually|until"
@@ -175,8 +89,6 @@ def checkSTL(stl, validAPData):
         
         order.append(stl[iter.start():iter.end()])
     split.append(stl[begin:])
-    print(order)
-    print(split)
 
     stlList = []
 
@@ -222,7 +134,7 @@ def checkSTL(stl, validAPData):
                     nums.append('infinity')
                     
             if len(nums) != 2:
-                return [False, "in " + info + " Expected two after numbers but detected " + str(len(nums))
+                return [False, "in " + info + " Expected two numbers but detected " + str(len(nums))
                         + " numbers: " + str(nums)]
             p = Predicate(operator, [nums[0], nums[1]])
         else:
