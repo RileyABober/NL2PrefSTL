@@ -131,7 +131,7 @@ def genSTLCheckPrompt(stl):
 
     prompt += stlStr + "\n"
 
-    prompt += "If so, respond with one word: yes, otherwise, rephrase the provided stl to better suit the intended meaning\n"
+    prompt += "If so, respond with one word: yes, otherwise, rephrase the provided STL to better suit the intended meaning\n"
 
     return prompt
 
@@ -144,11 +144,13 @@ def trajDat(pkl, trajectory):
     data["acceleration"] = get_acceleration(ego)[0]
     data["jerk"] = get_jerk(ego)[0]
     data["distance"] = get_distance(ego, ado)[0]
-    data["relative_speed"] = get_relative_speed(ego, ado)[0]
+    data["relative"] = get_relative_speed(ego, ado)[0]
     data["longitudinal"] = get_longitudinal_speed(ego, ado)[0]
     #return to np
     for key in data:
         data[key] = data[key].numpy()
+    data["acceleration"] = np.append(data["acceleration"], data["acceleration"][-1]) #equalize array lengths
+    data["jerk"] = np.append(data["jerk"], [data["jerk"][-1], data["jerk"][-1]]) #equalize array lengths
     
     return data
 

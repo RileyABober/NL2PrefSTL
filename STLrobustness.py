@@ -1,5 +1,6 @@
 import numpy as np
 import re
+import matplotlib.pyplot as plt
 
 class AP:
     #data is the name of the data provided, sign is <, >, or =. constant is a number constant. Represents AP data sign constant ex: speed < 2
@@ -43,27 +44,87 @@ class Predicate:
                 return np.maximum(r1, r2)
             case 'imply':
                 return np.maximum(-1 * r1, r2)
-            #case 'eventually':
+            case 'always':
+                t1, t2 = self.intervalCheck(len(r1))
+                if t1 == -1:
+                    #interval range has an invalid start
+                    return np.zeros(len(r1))
+                minRobustness = np.amin(r1[t1:t2])
+                return np.full(len(r1), minRobustness)
+            case 'eventually':
+                t1, t2 = self.intervalCheck(len(r1))
+                if t1 == -1:
+                    return np.zeros(len(r1))
+                maxRobustness = np.amax(r1[t1:t2])
+                return np.full(len(r1), maxRobustness)
+            case 'until':
+                t1, t2 = self.intervalCheck(len(r1))
+                if t1 == -1:
+                    return np.zeros(len(r1))
+                minR1 = np.zeros(len(r1))
+                minAtI = r1[0]
+                for i in range(t2):
+                    if minAtI > r1[i]:
+                        minAtI = r1[i]
+                    minR1[i] = minAtI
+                
+                transComp = np.minimum(minR1, r2)
+                maxInInterval = np.amax(transComp[t1:t2])
+                return np.full(len(r1), maxInInterval)
             case '_':
-                print("not implimented\n")
+                print(self.name + " is not a valid name in STL")
                 exit(0)
+
+    def intervalCheck(self, signalLength):
+        if self.interval[0] > signalLength:
+            #interval range has an invalid start
+            return [-1, -1]
+        if self.interval[1] == 'infinity':
+            #set interval to end at signal length
+            return [int(self.interval[0]), signalLength]
+            #set interval to end at signal length
+        if self.interval[1] > signalLength:
+            return [int(self.interval[0]), signalLength]
+        return [int(self.interval[0]), int(self.interval[1]) + 1]
 
     def __str__(self):
         out = self.name
         if self.interval != []:
             out += " [" + str(self.interval[0]) + " " + str(self.interval[1] + "]")
         return out
+    
+class WSTL:
+    #list of APs and Predicates in a valid order (view checkSTL function)
+    def __init__(self, stlList):
+        self.list = stlList
 
-#ap should be of the class AP and data should be a pytorch tensor
-#returns array of rubustness at each time interval
+    #appends via and operation another STL formula
 
-#input is a potential number, returns True if it is a number false otherwise
-def isNum(num):
-    try:
-        float(num)
-        return True
-    except ValueError:
-        return False
+#stl is a list of elements in the Predicate or AP class. Data is a dictionary with [name, np array] elements
+    def robustness(self, data):
+        robustnessStack = []
+        #iterate through elements in reverse calculating robustness and adding to stack such that each new operator takes into acount the
+        #robustness of the last two proposition robustness calculated (as is natural to pre-order STL formlas)
+        for inv in range(len(self.list)):
+            #reverse order indexing
+            element = len(self.list) - 1 - inv
+            p = self.list[element]
+
+            if type(p) == AP:
+                robustnessStack.append(p.calcRobustness(data[p.data]))
+            if type(p) == Predicate:
+                predRobustness = []
+                if p.name in ['not', 'always', 'eventually']:
+                    predRobustness = p.calcRobustness(robustnessStack[-1])
+                    robustnessStack.pop()
+                    robustnessStack.append(predRobustness)
+                else:
+                    predRobustness = p.calcRobustness(robustnessStack[-1], robustnessStack[-2])
+                    robustnessStack.pop()
+                    robustnessStack.pop()
+                    robustnessStack.append(predRobustness)
+                    
+        return np.amin(robustnessStack[0])    
 
 #stl is a proposed STL string of the form [AP/operator, AP/operator,..., AP], validAPData is an array of names for data
 #returns spliced STL or [False, violating formula element] if STL is an element is syntactically incorrect.
@@ -190,64 +251,5 @@ def checkSTL(stl, validAPData):
     if count != 1:
         return [False, "stl is not in valid pre-order, specifically there are " + str(count) + " propositions that are not connected via a proposition"]
 
-    return stlList
+    return WSTL(stlList)
 
-#stl is a list of elements in the Predicate or AP class. Data is a dictionary with [name, np array] elements
-def robustness(stl, data):
-    robustnessStack = []
-    #iterate through elements in reverse calculating robustness and adding to stack such that each new operator takes into acount the
-    #robustness of the last two proposition robustness calculated (as is natural to pre-order STL formlas)
-    for inv in range(len(stl)):
-        #reverse order indexing
-        element = len(stl) - 1 - inv
-        p = stl[element]
-        if type(p) == AP:
-            robustnessStack.append(p.calcRobustness(data[p.data]))
-        if type(p) == Predicate:
-            predRobustness = []
-            if p.name in ['not', 'always', 'eventually']:
-                predRobustness = p.calcRobustness(robustnessStack[-1])
-                robustnessStack.pop()
-            else:
-                predRobustness = p.calcRobustness(robustnessStack[-1], robustnessStack[-2])
-                robustnessStack.pop()
-                robustnessStack.pop()
-                robustnessStack.append(predRobustness)
-                
-    return robustnessStack[0]
-
-#metric for chosing preference based on robustness vectors
-#calculates average tanh robustness (tahnh(robustness)) and with greater values being more accurate
-#metric value
-def avgTanhRobustness(r):
-    reg = np.tanh(r)
-    avg = np.average(reg)
-    return avg
-
-#returns an an order of trajectories based on metric across all trajectories of size num trajectories
-#larger sum across stl formulae metric between trajectories is prefered
-#metricVals is an stl trajectories x stl formulae array of metric values 
-def largestSum(metricVals):
-    sums = np.sum(metricVals, axis=1)
-    sort = np.argsort(sums)
-    return sort
-
-#returns an array of length trajectories element i is the ranking of the ith trajectory (0-trajectories - 1 with larger numbers preferred)
-#data is a dictionary of dictionaries of trajectory, name, array key, key, value elements
-#stl is a list of valid pre-order stl formulae in [Predicate/AP] format
-#stlMetric is a metric for a robustness on stl (larger better), crossStlMetric is a metric across stl metrics to rank trajectories
-#ego_dat, ado_dat are the trajectories of the ego and other perspectives
-def metricTable(stlMetric, crossStlMetric, stl, data):
-    numTraj = len(data)
-    table = np.zeros(shape=(numTraj,  len(stl)))
-
-    for traj in range(numTraj):
-        for s in range(len(stl)):
-            table[traj][s] = stlMetric(robustness(stl[s], data[traj]))
-            print(str(traj) + ": " + str(table[traj][s]))
-
-    trajMetrics = crossStlMetric(table)
-    
-    return np.argsort(trajMetrics)
-    
-    

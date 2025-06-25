@@ -142,6 +142,7 @@ if __name__ == '__main__':
     data = {}
     for trajectory in range(len(pklDat["ego_trajectory"])):
         data[trajectory] = trajDat(pklDat, trajectory)
+        
     
     preferences = []
     reasonings = []
