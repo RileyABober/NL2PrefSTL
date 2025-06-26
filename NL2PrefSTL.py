@@ -65,6 +65,14 @@ def NL2PrefSTL(preferences, reasonings, ego_name, ado_name, data, scenario, stri
               str(len(reasonings)) + ")\n")
         exit(0)
 
+    #find max signal length (necessary for weight assignments)
+    horizon = 0
+    for traj in data:
+        key = list(data[traj].keys())[0]
+        l = len(data[traj][key])
+        if l > horizon:
+            horizon = l
+
     #generate prompt string
     stlList = []
     validData = []
@@ -93,7 +101,7 @@ def NL2PrefSTL(preferences, reasonings, ego_name, ado_name, data, scenario, stri
             propSTL = findSTL(propSTL)
             #is STL in bracket form
             if propSTL[0] != False:
-                stlFeedback = checkSTL(propSTL, validData)
+                stlFeedback = checkSTL(propSTL, validData, horizon=horizon)
             #if STL is not in brackets, use feedback in re-prompt
             else:
                 stlFeedback = propSTL
