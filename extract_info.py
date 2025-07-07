@@ -20,7 +20,7 @@ def get_speed(ego_data: list) -> torch.Tensor:
 
     N = len(ego_data)
     max_length = max([len(ego_data[k]) for k in range(N)])
-    speed_list = torch.ones(size=(N, max_length, 1))
+    speed_list = []
     limit = 1
     
     for k in range(N):
@@ -37,9 +37,9 @@ def get_speed(ego_data: list) -> torch.Tensor:
         speed = torch.from_numpy(np.reshape(sNP, newshape=(len(sNP), 1)))
         
         # padding the last value to the end of the sequence to make all sequences the same length
-        speed_list[k, :, :] = torch.cat((speed, speed[-1, :]*torch.ones(size=(max_length - speed.shape[0], 1))), axis=0)
+        speed_list.append(speed)
     
-    return speed_list.squeeze(-1)
+    return speed_list
 
 def get_acceleration(ego_data: list) -> torch.Tensor:
     '''
@@ -54,18 +54,18 @@ def get_acceleration(ego_data: list) -> torch.Tensor:
     '''
     N = len(ego_data)
     max_length = max([len(ego_data[k]) for k in range(N)])
-    acceleration = torch.ones(size=(N, max_length-1))
+    acceleration = []
     
     speed = get_speed(ego_data)
     limit = 1
 
     for k in range(N):
-        speed_k = speed[k,:]
-        acceleration[k,:] = (speed_k[:-1] - speed_k[1:]) / 0.1
+        speed_k = speed[k]
+        unSmoothedAcceleration = (speed_k[:-1] - speed_k[1:]) / 0.1
         #convolve to resmooth data
         smoothingWindow = 15
-        aNP = np.convolve(np.ndarray.flatten(acceleration[k].numpy()), np.ones(smoothingWindow)/smoothingWindow, mode='same')
-        acceleration[k,:] = torch.from_numpy(aNP)
+        aNP = np.convolve(np.ndarray.flatten(unSmoothedAcceleration.numpy()), np.ones(smoothingWindow)/smoothingWindow, mode='same')
+        acceleration.append(torch.from_numpy(aNP))
     return acceleration
 
 def get_jerk(ego_data:list)->torch.Tensor:
@@ -81,16 +81,16 @@ def get_jerk(ego_data:list)->torch.Tensor:
     '''
     N = len(ego_data)
     max_length = max([len(ego_data[k]) for k in range(N)])
-    jerk = torch.ones(size=(N, max_length-2))
+    jerk = []
     
     acceleration = get_acceleration(ego_data)
     for k in range(N):
-        accel = acceleration[k,:]
-        jerk[k,:] = (accel[:-1] - accel[1:]) / 0.1
+        accel = acceleration[k]
+        unSmoothedJerk = (accel[:-1] - accel[1:]) / 0.1
         #convolve to smooth data
         smoothingWindow = 15
-        jNP = np.convolve(np.ndarray.flatten(jerk[k].numpy()), np.ones(smoothingWindow)/smoothingWindow, mode='same')
-        jerk[k,:] = torch.from_numpy(jNP)
+        jNP = np.convolve(np.ndarray.flatten(unSmoothedJerk.numpy()), np.ones(smoothingWindow)/smoothingWindow, mode='same')
+        jerk.append(torch.from_numpy(jNP))
 
     return jerk
 

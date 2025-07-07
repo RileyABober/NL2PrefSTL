@@ -72,17 +72,17 @@ def createDataPrompt(preference, reasoning, ego_name, ado_name, data, stride, sc
     #description of STL
     prompt += "Given this information about two trajectories in a " + scenario + " and the user preference about which trajectory is preferred, "
     prompt += "provide a single STL formula that would enforce the users preferences."
-    prompt += "Signal temporal logic (STL) is a form of temporal logic with the following operators: negation, imply, and, equal, until, always[], eventually[], or."
+    prompt += "Signal temporal logic (STL) is a form of temporal logic with the following operators: negation, and, equal, until, always[], eventually[], or."
     prompt += "In this scenario the available atomic propositions are speed, acceleration, jerk, distance, longitudinal, relative."
     prompt += "jerk is the rate of acceleration. longitudinal is the horizontal speed of the vehicle, "
     prompt +="relative is the speed of the ego vehicle relative to the overtaken car. Distance is the distance of the ego vehicle relative to the overtaken car."
     prompt += "Use only numerical values in the atomic propositions.\n" #and do not consider safety constraints as it is unessesary in this instance.\n"
 
     #one-shot STL
-    prompt += "Given trajectory A and trajectory B where A accelerates around 10 and B accelerates around 5 when the distance from the car being "
+    prompt += "Given trajectory A and trajectory B where A accelerates around 5 and B accelerates around 2 when the distance from the car being "
     prompt += "overtaken is 40. Trajectory B is preferred with the stated reasoning: \n"
     prompt += "\" I don't like how quickly the car accelerates into the adjacent lane when passing the car in A\"\n"
-    prompt += "STL: distance < 40 imply acceleration < 10"
+    prompt += "STL: distance > 40 or acceleration < 5"
 
     return prompt
 
@@ -93,7 +93,7 @@ def genPreOrderPrompt(shots):
         print("Error: maximum of 5 shots allowed while " + str(shots) + " requested\n")
         exit(0)
 
-    shot1 = "STL: distance < 40 imply acceleration < 10\n pre-order: {imply, distance < 40, acceleration < 10}\n\n"
+    shot1 = "STL: negation(distance < 40) or acceleration < 5\n pre-order: {or, negation, distance < 40, acceleration < 5}\n\n"
     shot2 = "STL: acceleration > 0 and speed < 40\n pre-order: {and, acceleration > 0, speed < 40}\n\n"
     shot3 = "STL: always[0, infinity] (speed < 50 or acceleration < -5)\n pre-order: {always [0 infinity], or, speed < 50, acceleration < -5}\n\n"
     shotList = [shot1, shot2, shot3]
@@ -116,7 +116,7 @@ def genErrorPrompt(advice):
 
     prompt += "Remember that all STL must only be composed of data of the following labels: 'speed', 'acceleration', 'jerk', 'relative', 'distance', 'longitudinal' and nothing else.\n"
     prompt += "data can be compared only with constants in the form <data> <sign> <constant>.\n" 
-    prompt += "The operators in STL are: 'and', 'or', 'not', 'imply', 'always', 'eventually', 'until' and nothing else.\n"
+    prompt += "The operators in STL are: 'and', 'or', 'negation', 'always', 'eventually', 'until' and nothing else.\n"
 
     return prompt
 
@@ -135,23 +135,53 @@ def genSTLCheckPrompt(stl):
 
     return prompt
 
-
-def trajDat(pkl, trajectory):
+#given pkl file data extract data in the form of data_name, data over all trajectory key value pairs
+def trajDat(pkl):
     data = {}
-    ego = [torch.tensor(np.array(pkl["ego_trajectory"][trajectory]))[:, 1:3]]
-    ado = [torch.tensor(np.array(pkl["ado_trajectory"][trajectory]))[:, 1:3]]
-    data["speed"] = get_speed(ego)[0]
-    data["acceleration"] = get_acceleration(ego)[0]
-    data["jerk"] = get_jerk(ego)[0]
-    data["distance"] = get_distance(ego, ado)[0]
-    data["relative"] = get_relative_speed(ego, ado)[0]
-    data["longitudinal"] = get_longitudinal_speed(ego, ado)[0]
-    #return to np
-    for key in data:
-        data[key] = data[key].numpy()
-    data["acceleration"] = np.append(data["acceleration"], data["acceleration"][-1]) #equalize array lengths
-    data["jerk"] = np.append(data["jerk"], [data["jerk"][-1], data["jerk"][-1]]) #equalize array lengths
+    ego = [] 
+    ado = []
+    maxLength = 0
+    for k in range(len(pkl["ego_trajectory"])):
+        try:
+            ego.append(torch.tensor(np.array(pkl["ego_trajectory"][k]))[:, 1:3])
+            ado.append(torch.tensor(np.array(pkl["ado_trajectory"][k]))[:, 1:3])
+            if len(pkl["ego_trajectory"][k]) > maxLength:
+                maxLength = len(pkl["ego_trajectory"][k])
+        except KeyError:
+            continue
+
+    #data extracts the metrics from the data and extends them to the max length by repeating the last value
+    data["distance"] = get_distance(ego, ado)
+    data["relative"] = get_relative_speed(ego, ado)
+    data["longitudinal"] = get_longitudinal_speed(ego, ado)
+
+    #because these data are dependent on eachother and errors occur from extending the data before concatenation
+    #they must be extended now
+    speedList = get_speed(ego)
+    accelerationList = get_acceleration(ego)
+    jerkList = get_jerk(ego)
     
+    speed = torch.ones(len(pkl["ego_trajectory"]), maxLength)
+    acceleration = torch.ones(len(pkl["ego_trajectory"]), maxLength)
+    jerk = torch.ones(len(pkl["ego_trajectory"]), maxLength)
+
+    for k in range(len(pkl["ego_trajectory"])):
+        speed[k, :] = torch.cat((speedList[k], speedList[k][-1]*torch.ones(size=(maxLength - speedList[k].shape[0],1))),axis=0).squeeze(-1)
+        acceleration[k, :] = torch.cat((accelerationList[k], accelerationList[k][-1]*torch.ones(size=((maxLength - accelerationList[k].shape[0]),))))
+        jerk[k, :] = torch.cat((jerkList[k], jerkList[k][-1]*torch.ones(size=((maxLength - jerkList[k].shape[0]),))))
+    
+    data["speed"] = speed
+    data["acceleration"] = acceleration
+    data["jerk"] = jerk
+    
+    return data
+
+#retrives signals for robustness calculations
+def getSignals(pkl):
+    data = trajDat(pkl)
+    for key in data:
+        data[key] = data[key].unsqueeze(-1).unsqueeze(-1)
+
     return data
 
 #LLMs may have difficulty outputting STL alone and requests to do this may relinquish train of thought patterns which benefit accuracy
@@ -162,7 +192,6 @@ def findSTL(prompt):
     end = None
     #first find the end of think (relevant string deepseek which starts the actual response message)
     start = prompt.find("</think>")
-    print("start: " + str(start) + "\n")
     for index in range(len(prompt) - start):
         c = index + start
         if prompt[c] == '{':
