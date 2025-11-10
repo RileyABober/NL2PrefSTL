@@ -1255,6 +1255,14 @@ class Until(WSTL_Formula):
         trace1 = self.subformula1(inputs[0], scale=sc)
         trace2 = self.subformula2(inputs[1], scale=sc)
 
+        #if one side has been weighted and the other has not:
+        if trace1.shape[2] != trace2.shape[2]:
+            if trace1.shape[2] < trace2.shape[2]:
+                trace1 = trace1.repeat(repeats=(1, 1, trace2.shape[2], 1))
+            else:
+                trace2 = trace2.repeat(repeats=(1, 1, trace1.shape[2], 1))
+        
+
         trace_length = min(trace1.shape[1], trace2.shape[1])
         trace = torch.cat(
             [trace1[:, :trace_length, :], trace2[:, :trace_length, :]], axis=-1
@@ -1486,6 +1494,9 @@ class Expression(torch.nn.Module):
         ), "LHS of Equal needs to be a string or Expression"
         assert not isinstance(rhs, str), "RHS cannot be a string"
         return Equal(lhs, rhs)
+    
+    def __hash__(self):
+        return id(self)
 
     def __str__(self):
         return str(self.name)
