@@ -1,0 +1,21 @@
+Trajectory 1,Trajectory 2,Preference,Reasoning
+0,13,0,I like that the car slows down a bit in 0 before overtaking the car. I also like that it changes lanes quickly.
+0,12,0,The speed in 12 is more then I want. 0 also slows down before the vehicle in front which I think is good. They are both good options though.
+0,8,0,8 accelerates horizontally way to quickly. 0 in comparison is quite calm and even slows down before passing the car in front while smoothly changing lanes
+1,7,7,I generally like both but 7 has a smoother lane change
+1,2,1,I feel like 2 is a tad slow. 1 is at a good speed when it changes langes.
+1,20,1,20 is moving much faster than I want. It also does not give the car in front enough space when passing. 1 on the other is going at a decent speed but changes lanes well before passing the car which I like.
+2,16,16,16 moves at a better speed and has a smooth transition into the left lane. 2 on the other hand moves too slowly
+2,18,2,They're both a bit slow but 2 provides more space for the car ahead
+5,17,5,"While I dislike both, 17 feels faster and the lane change occurs later. I would like that 5 gives the car more space"
+5,15,5,The car is going way too slow in 15. I would generally prefer to go a bit quicker
+5,7,7,"5 is faster then 7 and a speed in the middle would be nice but 7 is better Furthermore, 5 has a strange horizontal motion when it it next to the car that it is passing which is distressing"
+5,12,12,12 has a smoother transition into the left lane. 5 feels like it accelerates too quickly into that lane.
+6,17,6,17 does not provide enough space for the car it is overtaking. I prefer 6 because it gives more space by changing lanes earlier.
+6,8,8,I like that 8 does not accelerate so quickly into the left lane while overtaking. The lane change in 6 feels jarring
+7,15,7,I generally like both but 7 is a bit faster I feel and 17 could go at a quicker speed especially on the straight away
+8,16,16,The car is going the perfect speed in 16 while it is going to fast in 8. I also feel that the transition in 16 is smoother which is generally prefered.
+8,18,8,18 feels so slow. I prefer the speed exibited in 8. 8 also changes langes at a further distance from the car than 18 does.
+9,12,9,12 is too fast for my liking. 9 is also too slow but it is definitelly the better of the two.
+11,15,15,"11 is way to slow and passes the car to the right when I would prefer to pass it in the left lane. Furthermore, the car in 11 slows down before the car in front of it for too long and should generally pass quicker"
+13,18,13,Both are pretty good but 18 is too slow. I like that `13 maintains a faster speed while still remaining a safe distance from the car in front
